@@ -17,17 +17,17 @@ terraform {
   required_version = "~> 1.0"
 }
 
-provider "aws" {
+provider "aws" { # The provider for this terraform application
   region = var.aws_region
 }
 
-resource "random_pet" "lambda_bucket_name" {
-  prefix = "learn-terraform-functions"
-  length = 4
+resource "random_pet" "lambda_bucket_name" { # random_pet = generated a random pet name
+  prefix = "learn-terraform-functions" # The string before random pet name
+  length = 4 # Length of pet name
 }
 
 resource "aws_s3_bucket" "lambda_bucket" {
-  bucket = random_pet.lambda_bucket_name.id
+  bucket = random_pet.lambda_bucket_name.id # Set the bucket with created name
 
   force_destroy = true
 }
