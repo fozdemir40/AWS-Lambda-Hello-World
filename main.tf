@@ -32,3 +32,19 @@ resource "aws_s3_bucket" "lambda_bucket" {
   acl           = "private"
   force_destroy = true
 }
+
+data "archive_file" "lambda_hello_world"{
+  type = "zip"
+
+  source_dir = "${path.module}/app"  # The source for function
+  output_path = "${path.module}/app.zip" #  The output for function
+}
+
+resource "aws_s3_object" "lambda_hello_world" {
+  bucket = aws_s3_bucket.lambda_bucket.id
+
+  key = "app.zip"
+  source = "data.archive_file.lambda_hello_world.output_path"
+
+  etag = filemd5(data.archive_file.lambda_hello_world.output_path)
+}
