@@ -89,3 +89,63 @@ resource "aws_iam_role_policy_attachment" "lambda_policy" { # Attaches a policy 
   policy_arn = "arn:aws:iam::aws:policy/service-role/AWSLambdaBasicExecutionRole" # This specific role is an AWS managed policy that allows Lambda to write to CloudWatch
   role       = aws_iam_role.lambda_exec.name
 }
+
+resource "aws_apigatewayv2_api" "lambda" { # Creates API Gateway, sets name and protocol
+  name          = "serverless_lambda_gw"
+  protocol_type = "HTTP"
+}
+
+resource "aws_apigatewayv2_stage" "lambda" { # For settings stages in api gateway
+  api_id = aws_apigatewayv2_api.lambda.id
+
+  name        = "serverless_lambda_stage"
+  auto_deploy = true
+
+  access_log_settings { # with access logging enabled
+    destination_arn = aws_cloudwatch_log_group.api_gw.arn
+
+    format = jsonencode({
+      requestId               = "$context.requestId"
+      sourceIp                = "$context.identity.sourceIp"
+      requestTime             = "$context.requestTime"
+      protocol                = "$context.protocol"
+      httpMethod              = "$context.httpMethod"
+      resourcePath            = "$context.resourcePath"
+      routeKey                = "$context.routeKey"
+      status                  = "$context.status"
+      responseLength          = "$context.responseLength"
+      integrationErrorMessage = "$context.integrationErrorMessage"
+      }
+    )
+  }
+}
+
+resource "aws_apigatewayv2_integration" "hello_world" { # Configuring to let apiGateway use lambda function
+  api_id = aws_apigatewayv2_api.lambda.id
+
+  integration_uri    = aws_lambda_function.hello_world.invoke_arn
+  integration_type   = "AWS_PROXY"
+  integration_method = "POST"
+}
+
+resource "aws_apigatewayv2_route" "hello_world" { # Maps an HTTP request to a target
+  api_id = aws_apigatewayv2_api.lambda.id
+
+  route_key = "GET /hello" # matches any GET requests matching the path (/hello)
+  target    = "integrations/${aws_apigatewayv2_integration.hello_world.id}" # A target matching 'integrations/ID' maps to a Lambda integration with the given ID
+}
+
+resource "aws_cloudwatch_log_group" "api_gw" { # Defines a log group to store access logs
+  name = "/aws/api_gw/${aws_apigatewayv2_api.lambda.name}"
+
+  retention_in_days = 30 # Deletes after 30 days
+}
+
+resource "aws_lambda_permission" "api_gw" { # Gives permissions
+  statement_id  = "AllowExecutionFromAPIGateway" # Gives API Gateway permission
+  action        = "lambda:InvokeFunction" # permission to invoke Lambda function
+  function_name = aws_lambda_function.hello_world.function_name # name of function
+  principal     = "apigateway.amazonaws.com"
+
+  source_arn = "${aws_apigatewayv2_api.lambda.execution_arn}/*/*"
+}
