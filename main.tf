@@ -55,7 +55,7 @@ resource "aws_lambda_function" "hello_world"{  # Configures the lambda function
   s3_key = aws_s3_object.lambda_app.key
 
   runtime = "python3.9" # The runtime
-  handler = "main.handler" # finding the handler
+  handler = "main.hello" # finding the handler
 
   source_code_hash = data.archive_file.lambda_app.output_base64sha256 #  This defines if the code has changed. which lets lambda know if there is a new version
 
